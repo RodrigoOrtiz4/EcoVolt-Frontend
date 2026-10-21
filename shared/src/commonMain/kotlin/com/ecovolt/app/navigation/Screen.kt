@@ -6,4 +6,5 @@ sealed interface Screen {
     data object Registro : Screen
     data object Inicio : Screen
     data object Lecturas : Screen
+    data object Captura : Screen   // leer el medidor con la cámara (OCR)
 }

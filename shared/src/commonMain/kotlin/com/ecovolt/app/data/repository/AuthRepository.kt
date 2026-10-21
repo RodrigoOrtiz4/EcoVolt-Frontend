@@ -1,12 +1,9 @@
 package com.ecovolt.app.data.repository
 
 import com.ecovolt.app.data.local.SesionStorage
-import com.ecovolt.app.data.local.UsuarioRegistro
-import com.ecovolt.app.data.local.UsuariosLocalDataSource
-import com.ecovolt.app.data.local.UsuariosRegistradosStorage
-import com.ecovolt.app.model.Rol
+import com.ecovolt.app.data.remote.AuthApi
+import com.ecovolt.app.data.remote.RespuestaAuth
 import com.ecovolt.app.model.Usuario
-import com.ecovolt.app.service.PasswordHasher
 import kotlin.coroutines.cancellation.CancellationException
 
 sealed interface ResultadoLogin {
@@ -21,81 +18,63 @@ sealed interface ResultadoRegistro {
     data class Error(val mensaje: String) : ResultadoRegistro
 }
 
-// Lógica del login y del registro. Los usuarios predefinidos salen de un JSON local y los
-// que se registran en la app se guardan en el dispositivo. Cuando exista la API solo se
-// cambiarían las fuentes de datos, sin tocar las pantallas.
+private const val SIN_SERVIDOR = "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo."
+
+// Lógica del login y del registro. Ya no valida contraseñas ni guarda usuarios: eso lo hace el
+// backend. Aquí solo se envían los datos, se interpreta la respuesta y se recuerda la sesión.
 class AuthRepository(
-    private val usuarios: UsuariosLocalDataSource,
-    private val registrados: UsuariosRegistradosStorage,
+    private val api: AuthApi,
     private val sesion: SesionStorage
 ) {
 
-    // Predefinidos + registrados en la app
-    private suspend fun todosLosUsuarios(): List<UsuarioRegistro> =
-        usuarios.obtenerUsuarios() + registrados.obtener()
-
     suspend fun iniciarSesion(usuario: String, contrasena: String): ResultadoLogin {
-        val registros = try {
-            todosLosUsuarios()
+        val respuesta = try {
+            api.login(usuario.trim(), contrasena)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            return ResultadoLogin.Error("No se pudo leer la lista de usuarios.")
+            return ResultadoLogin.Error("DEBUG: $e")
         }
 
-        val registro = registros.firstOrNull { it.usuario.equals(usuario.trim(), ignoreCase = true) }
-            ?: return ResultadoLogin.CredencialesInvalidas
-
-        if (!PasswordHasher.verificar(contrasena, registro.salt, registro.passwordHash)) {
-            return ResultadoLogin.CredencialesInvalidas
+        return when (respuesta) {
+            is RespuestaAuth.Aceptada -> {
+                sesion.guardar(respuesta.datos.usuario, respuesta.datos.token)
+                ResultadoLogin.Exito(respuesta.datos.usuario)
+            }
+            is RespuestaAuth.Rechazada -> when (respuesta.codigo) {
+                401 -> ResultadoLogin.CredencialesInvalidas
+                else -> ResultadoLogin.Error(respuesta.mensaje)
+            }
         }
-
-        val autenticado = Usuario(registro.id, registro.usuario, registro.nombre, registro.rol)
-        sesion.guardar(autenticado)
-        return ResultadoLogin.Exito(autenticado)
     }
 
-    // Crea una cuenta nueva. Todo registro desde la app entra como ALUMNO: los demás roles
-    // (director, docente, responsable) se asignan aparte, no se pueden elegir al registrarse.
+    // Todo registro entra como ALUMNO: el rol lo decide el servidor, la app no puede elegirlo.
     suspend fun registrar(nombre: String, usuario: String, contrasena: String): ResultadoRegistro {
-        val existentes = try {
-            todosLosUsuarios()
+        val respuesta = try {
+            api.registrar(nombre.trim(), usuario.trim(), contrasena)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            return ResultadoRegistro.Error("No se pudo leer la lista de usuarios.")
+            return ResultadoRegistro.Error(SIN_SERVIDOR)
         }
 
-        val nombreUsuario = usuario.trim()
-        if (existentes.any { it.usuario.equals(nombreUsuario, ignoreCase = true) }) {
-            return ResultadoRegistro.UsuarioExistente
+        return when (respuesta) {
+            is RespuestaAuth.Aceptada -> {
+                // Al terminar el registro la persona entra directo, sin volver a escribir sus datos
+                sesion.guardar(respuesta.datos.usuario, respuesta.datos.token)
+                ResultadoRegistro.Exito(respuesta.datos.usuario)
+            }
+            is RespuestaAuth.Rechazada -> when (respuesta.codigo) {
+                409 -> ResultadoRegistro.UsuarioExistente
+                else -> ResultadoRegistro.Error(respuesta.mensaje)
+            }
         }
-
-        val salt = PasswordHasher.generarSalt()
-        val nuevo = UsuarioRegistro(
-            id = (existentes.maxOfOrNull { it.id } ?: 0) + 1,
-            usuario = nombreUsuario,
-            nombre = nombre.trim(),
-            rol = Rol.ALUMNO,
-            salt = salt,
-            passwordHash = PasswordHasher.hash(contrasena, salt)
-        )
-
-        try {
-            registrados.guardar(registrados.obtener() + nuevo)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            return ResultadoRegistro.Error("No se pudo guardar tu cuenta. Intenta de nuevo.")
-        }
-
-        // Al terminar el registro la persona entra directo, sin volver a escribir sus datos
-        val autenticado = Usuario(nuevo.id, nuevo.usuario, nuevo.nombre, nuevo.rol)
-        sesion.guardar(autenticado)
-        return ResultadoRegistro.Exito(autenticado)
     }
 
-    fun sesionActual(): Usuario? = sesion.obtener()
+    // Una sesión sin token (guardada por una versión anterior de la app) no sirve con el backend:
+    // se trata como si no hubiera sesión y se pide iniciar de nuevo.
+    fun sesionActual(): Usuario? =
+        if (sesion.obtenerToken() == null) null else sesion.obtener()
 
     fun cerrarSesion() = sesion.cerrar()
 }

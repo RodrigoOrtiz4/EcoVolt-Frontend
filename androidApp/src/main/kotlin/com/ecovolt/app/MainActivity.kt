@@ -6,18 +6,20 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.ecovolt.app.data.local.SharedPrefsLecturaStorage
 import com.ecovolt.app.data.local.SharedPrefsSesionStorage
-import com.ecovolt.app.data.local.SharedPrefsUsuariosStorage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        // Debe crearse aquí, antes de que la actividad arranque, porque registra el resultado de la cámara
+        val lector = AndroidLectorMedidor(this)
+
         setContent {
             App(
                 storage = SharedPrefsLecturaStorage(applicationContext),
                 sesionStorage = SharedPrefsSesionStorage(applicationContext),
-                usuariosStorage = SharedPrefsUsuariosStorage(applicationContext)
+                lector = lector
             )
         }
     }

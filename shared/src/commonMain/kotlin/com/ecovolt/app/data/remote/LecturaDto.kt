@@ -20,6 +20,16 @@ fun LecturaDto.toModel() = Lectura(
     valorKwh = valorKwh
 )
 
+// Lo que se envía en POST /lecturas al guardar una lectura nueva. No lleva id: lo asigna el backend.
+@Serializable
+data class NuevaLecturaDto(
+    val fecha: String,
+    val momento: String,                 // "viernes" o "lunes"
+    @SerialName("valor_kwh") val valorKwh: Double
+)
+
+fun MomentoLectura.aTextoApi(): String = if (this == MomentoLectura.LUNES_INICIO) "lunes" else "viernes"
+
 fun Lectura.toDto() = LecturaDto(
     id = id,
     fecha = fecha,

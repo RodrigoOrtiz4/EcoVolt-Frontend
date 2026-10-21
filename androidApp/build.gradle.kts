@@ -14,6 +14,8 @@ dependencies {
     implementation(project(":shared"))
 
     implementation(libs.androidx.activity.compose)
+    // OCR en el celular (sin internet): reconoce el número del medidor en la foto
+    implementation(libs.mlkit.text.recognition)
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)

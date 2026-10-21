@@ -2,6 +2,7 @@ package com.ecovolt.app.ui.lecturas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ecovolt.app.data.remote.SesionExpiradaException
 import com.ecovolt.app.data.repository.LecturaRepository
 import com.ecovolt.app.model.Lectura
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,10 +49,13 @@ class LecturasViewModel(private val repository: LecturaRepository) : ViewModel()
                         )
                     }
                 }
-                .onFailure {
-                    _estado.update {
-                        it.copy(cargando = false, mensaje = "Sin conexión. Mostrando lecturas guardadas.")
+                .onFailure { error ->
+                    val mensaje = if (error is SesionExpiradaException) {
+                        "Tu sesión expiró. Cierra sesión y vuelve a entrar. Mostrando lecturas guardadas."
+                    } else {
+                        "Sin conexión con el servidor. Mostrando lecturas guardadas."
                     }
+                    _estado.update { it.copy(cargando = false, mensaje = mensaje) }
                 }
         }
     }

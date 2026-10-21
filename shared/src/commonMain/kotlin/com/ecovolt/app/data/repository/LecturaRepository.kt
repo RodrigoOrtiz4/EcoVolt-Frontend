@@ -2,6 +2,8 @@ package com.ecovolt.app.data.repository
 
 import com.ecovolt.app.data.local.LecturaStorage
 import com.ecovolt.app.data.remote.EcoVoltApi
+import com.ecovolt.app.data.remote.NuevaLecturaDto
+import com.ecovolt.app.data.remote.aTextoApi
 import com.ecovolt.app.data.remote.toModel
 import com.ecovolt.app.model.Lectura
 import com.ecovolt.app.model.MomentoLectura
@@ -18,6 +20,20 @@ class LecturaRepository(
 
     // Lecturas guardadas en el dispositivo (funciona sin internet)
     fun lecturasGuardadas(): List<Lectura> = storage.obtener()
+
+    // Envía al backend una lectura capturada con la cámara (POST /lecturas).
+    // Si el servidor la acepta, también se agrega a las guardadas en el teléfono
+    // para que aparezca de inmediato en "Ver lecturas", aun sin volver a sincronizar.
+    suspend fun agregarLectura(momento: MomentoLectura, valorKwh: Double, fecha: String): Result<Lectura> =
+        try {
+            val guardada = api.enviarLectura(NuevaLecturaDto(fecha, momento.aTextoApi(), valorKwh)).toModel()
+            storage.guardar(storage.obtener().filter { it.id != guardada.id } + guardada)
+            Result.success(guardada)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
 
     // Descarga de la API, guarda en local y devuelve el resultado
     suspend fun sincronizar(): Result<List<Lectura>> =

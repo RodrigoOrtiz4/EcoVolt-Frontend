@@ -37,7 +37,12 @@ import com.ecovolt.app.model.Usuario
 
 // Pantalla de bienvenida después del login. Muestra el rol con el que se entró.
 @Composable
-fun InicioScreen(usuario: Usuario, alVerLecturas: () -> Unit, alCerrarSesion: () -> Unit) {
+fun InicioScreen(
+    usuario: Usuario,
+    alVerLecturas: () -> Unit,
+    alCapturar: () -> Unit,
+    alCerrarSesion: () -> Unit
+) {
     val colores = MaterialTheme.colorScheme
     val puedeVerLecturas = usuario.rol == Rol.DIRECTOR || usuario.rol == Rol.RESPONSABLE
 
@@ -102,12 +107,19 @@ fun InicioScreen(usuario: Usuario, alVerLecturas: () -> Unit, alCerrarSesion: ()
                     Text(text = usuario.rol.descripcion, style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.height(20.dp))
 
+                    // Mismos roles que el backend deja guardar lecturas (DIRECTOR y RESPONSABLE)
                     if (puedeVerLecturas) {
                         Button(
+                            onClick = alCapturar,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                        ) { Text("📷  Leer medidor con la cámara", fontWeight = FontWeight.SemiBold) }
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedButton(
                             onClick = alVerLecturas,
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth().height(52.dp)
-                        ) { Text("Ver lecturas del medidor", fontWeight = FontWeight.SemiBold) }
+                        ) { Text("Ver lecturas del medidor") }
                         Spacer(Modifier.height(12.dp))
                     }
                     OutlinedButton(

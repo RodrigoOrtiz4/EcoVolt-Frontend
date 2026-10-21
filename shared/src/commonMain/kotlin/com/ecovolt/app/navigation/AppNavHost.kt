@@ -15,6 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ecovolt.app.data.repository.AuthRepository
 import com.ecovolt.app.data.repository.LecturaRepository
+import com.ecovolt.app.service.LectorMedidor
+import com.ecovolt.app.ui.captura.CapturaScreen
+import com.ecovolt.app.ui.captura.CapturaViewModel
 import com.ecovolt.app.ui.inicio.InicioScreen
 import com.ecovolt.app.ui.lecturas.LecturasScreen
 import com.ecovolt.app.ui.lecturas.LecturasViewModel
@@ -25,7 +28,11 @@ import com.ecovolt.app.ui.registro.RegistroViewModel
 
 // Navegación compartida: si ya hay una sesión guardada entra directo, si no pide login (o registro).
 @Composable
-fun AppNavHost(lecturaRepository: LecturaRepository, authRepository: AuthRepository) {
+fun AppNavHost(
+    lecturaRepository: LecturaRepository,
+    authRepository: AuthRepository,
+    lector: LectorMedidor
+) {
     var usuario by remember { mutableStateOf(authRepository.sesionActual()) }
     var pantalla by remember {
         mutableStateOf<Screen>(if (usuario == null) Screen.Login else Screen.Inicio)
@@ -63,6 +70,7 @@ fun AppNavHost(lecturaRepository: LecturaRepository, authRepository: AuthReposit
                 InicioScreen(
                     usuario = actual,
                     alVerLecturas = { pantalla = Screen.Lecturas },
+                    alCapturar = { pantalla = Screen.Captura },
                     alCerrarSesion = {
                         authRepository.cerrarSesion()
                         usuario = null
@@ -81,6 +89,11 @@ fun AppNavHost(lecturaRepository: LecturaRepository, authRepository: AuthReposit
                     modifier = Modifier.align(Alignment.TopEnd).safeContentPadding()
                 ) { Text("Volver") }
             }
+        }
+
+        Screen.Captura -> {
+            val viewModel = viewModel { CapturaViewModel(lector, lecturaRepository) }
+            CapturaScreen(viewModel) { pantalla = Screen.Inicio }
         }
     }
 }
