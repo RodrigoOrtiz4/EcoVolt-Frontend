@@ -54,4 +54,26 @@ object Validador {
             else -> null
         }
     }
+
+    // ---- Reportes (RFN-19). Mismas reglas que Validators.area y Validators.descripcion del backend ----
+
+    fun validarArea(valor: String): String? {
+        val texto = valor.trim()
+        return when {
+            texto.isEmpty() -> "Indica el área (por ejemplo: Salón 3B)"
+            texto.length < 3 -> "Debe tener al menos 3 caracteres"
+            texto.length > 50 -> "Debe tener máximo 50 caracteres"
+            else -> null
+        }
+    }
+
+    fun validarDescripcion(valor: String): String? {
+        val texto = valor.trim()
+        return when {
+            texto.isEmpty() -> "Describe lo que viste"
+            texto.length < 10 -> "Escribe al menos 10 caracteres para que se entienda"
+            texto.length > 500 -> "Debe tener máximo 500 caracteres"
+            else -> null
+        }
+    }
 }

@@ -41,6 +41,8 @@ fun InicioScreen(
     usuario: Usuario,
     alVerLecturas: () -> Unit,
     alCapturar: () -> Unit,
+    alVerReportes: () -> Unit,
+    alVerConsejos: () -> Unit,
     alCerrarSesion: () -> Unit
 ) {
     val colores = MaterialTheme.colorScheme
@@ -122,6 +124,25 @@ fun InicioScreen(
                         ) { Text("Ver lecturas del medidor") }
                         Spacer(Modifier.height(12.dp))
                     }
+
+                    // Para todos los roles: cualquiera puede reportar y consultar consejos
+                    Button(
+                        onClick = alVerReportes,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Text(
+                            text = if (puedeVerLecturas) "📝  Reportes de desperdicio o falla" else "📝  Reportar desperdicio o falla",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = alVerConsejos,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) { Text("💡  Consejos de ahorro") }
+                    Spacer(Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = alCerrarSesion,
                         shape = RoundedCornerShape(14.dp),

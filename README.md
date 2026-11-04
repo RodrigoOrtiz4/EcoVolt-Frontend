@@ -48,3 +48,42 @@ androidApp/src/main/res/xml/file_paths.xml              Carpeta temporal de la f
 ```
 
 Requiere el backend con la ruta `POST /lecturas` (EcoVolt - BackEnd).
+
+---
+
+## Reportes de desperdicio o falla (RFN-19)
+
+Disponible para **todos los roles** (botón "📝 Reportar desperdicio o falla" en la pantalla de inicio).
+
+1. Se elige el tipo: **Desperdicio** (luces o equipos encendidos sin uso) o **Falla** (algo descompuesto).
+2. Se escribe el **área** (hay botones rápidos: Salón, Baños, Laboratorio...) y una **descripción** (10 a 500 caracteres).
+3. Se agrega una **foto** con la cámara o desde la galería. `AndroidSelectorFoto` la reduce a 1280 px y la comprime en JPG (~200 KB).
+4. Al tocar **Enviar reporte** se manda al backend con `POST /reportes` (la foto va en Base64 dentro del JSON).
+5. En la lista, el **Director** y el **Responsable** ven todos los reportes con el nombre de quien los envió; los demás ven solo los suyos. La foto se descarga al tocar "Ver foto" (`GET /reportes/{id}/foto`).
+
+```
+shared/src/commonMain/.../model/Reporte.kt                 TipoReporte y Reporte
+shared/src/commonMain/.../service/SelectorFoto.kt          Contrato para conseguir la foto (lo implementa androidApp)
+shared/src/commonMain/.../service/Imagen.kt                ByteArray.aImagen() (expect) + androidMain/.../Imagen.android.kt (actual)
+shared/src/commonMain/.../data/remote/ReporteDto.kt        JSON de /reportes
+shared/src/commonMain/.../data/repository/ReporteRepository.kt
+shared/src/commonMain/.../ui/reportes/                     ReportesScreen (lista) y NuevoReporteScreen (formulario) con sus ViewModels
+androidApp/.../AndroidSelectorFoto.kt                      Cámara / galería del sistema, reducir y comprimir la foto
+```
+
+## Consejos de ahorro (RFN-25)
+
+Disponible para **todos los roles** (botón "💡 Consejos de ahorro").
+
+- Pestañas **Escuela** y **Hogar**. Los consejos vienen del backend (`GET /consejos`) y se guardan en el teléfono para verlos sin internet.
+- En la pestaña Escuela aparece una **recomendación con datos reales**: con las lecturas guardadas se calcula el consumo del último fin de semana; si pasa el umbral de `ConsumoService.hayConsumoFantasma` (5 kWh) se avisa de **consumo fantasma**.
+
+```
+shared/src/commonMain/.../model/Consejo.kt                 AmbitoConsejo y Consejo
+shared/src/commonMain/.../data/remote/ConsejoDto.kt        JSON de /consejos
+shared/src/commonMain/.../data/local/ConsejoStorage.kt     Contrato + androidMain/.../SharedPrefsConsejoStorage.kt
+shared/src/commonMain/.../data/repository/ConsejoRepository.kt
+shared/src/commonMain/.../ui/consejos/                     ConsejosScreen y ConsejosViewModel
+```
+
+Ambos módulos requieren el backend con las rutas `/reportes` y `/consejos` (EcoVolt - BackEnd).

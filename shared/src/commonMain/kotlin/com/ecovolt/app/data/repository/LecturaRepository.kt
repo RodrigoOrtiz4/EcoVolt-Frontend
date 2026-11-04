@@ -57,4 +57,7 @@ class LecturaRepository(
             .maxByOrNull { it.fecha } ?: return null
         return runCatching { consumoService.consumoFinDeSemana(viernes, lunes) }.getOrNull()
     }
+
+    // La usa la pantalla de consejos para avisar cuando el fin de semana se gastó de más
+    fun hayConsumoFantasma(consumoKwh: Double): Boolean = consumoService.hayConsumoFantasma(consumoKwh)
 }
