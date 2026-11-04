@@ -52,13 +52,12 @@ private val AREAS_SUGERIDAS = listOf(
     "Salón", "Laboratorio", "Centro de cómputo", "Baños", "Oficinas", "Biblioteca", "Cafetería", "Patio"
 )
 
-// Formulario del reporte (RFN-19). Sigue los mismos pasos numerados que la pantalla de captura.
 @Composable
 fun NuevoReporteScreen(viewModel: NuevoReporteViewModel, alVolver: () -> Unit) {
     val estado by viewModel.estado.collectAsState()
     val colores = MaterialTheme.colorScheme
 
-    // Decodificar la foto cuesta: remember solo lo repite cuando cambia la foto, no en cada redibujo
+    // Remember solo lo repite cuando cambia la foto, no en cada redibujo
     val vistaPrevia = remember(estado.foto) { estado.foto?.bytes?.aImagen() }
 
     Box(
@@ -74,25 +73,7 @@ fun NuevoReporteScreen(viewModel: NuevoReporteViewModel, alVolver: () -> Unit) {
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            TextButton(
-                onClick = alVolver,
-                enabled = !estado.enviando,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-                modifier = Modifier.align(Alignment.Start)
-            ) { Text("← Volver") }
-
-            Text(
-                text = "Nuevo reporte",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = "Avisa de un desperdicio de energía o de una falla",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.9f)
-            )
-            Spacer(Modifier.height(20.dp))
+            
 
             Card(
                 modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp),

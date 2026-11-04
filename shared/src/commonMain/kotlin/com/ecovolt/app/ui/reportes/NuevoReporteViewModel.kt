@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// Todo lo que el formulario de reporte necesita mostrar (RFN-19: foto, área y descripción)
+// Todo lo que el formulario de reporte necesita mostrar
 data class NuevoReporteUiState(
     val tipo: TipoReporte = TipoReporte.DESPERDICIO,
     val area: String = "",
