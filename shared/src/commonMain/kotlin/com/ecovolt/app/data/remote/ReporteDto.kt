@@ -1,5 +1,6 @@
 package com.ecovolt.app.data.remote
 
+import com.ecovolt.app.model.EstatusReporte
 import com.ecovolt.app.model.Reporte
 import com.ecovolt.app.model.TipoReporte
 import kotlinx.serialization.SerialName
@@ -14,7 +15,8 @@ data class ReporteDto(
     val area: String,
     val descripcion: String,
     val fecha: String,
-    val autor: String
+    val autor: String,
+    val estatus: String = "pendiente" // "pendiente", "en_proceso" o "resuelto"
 )
 
 fun ReporteDto.toModel() = Reporte(
@@ -23,11 +25,12 @@ fun ReporteDto.toModel() = Reporte(
     area = area,
     descripcion = descripcion,
     fecha = fecha,
-    autor = autor
+    autor = autor,
+    estatus = EstatusReporte.deTexto(estatus)
 )
 
 // Lo que se envía en POST /reportes. La foto va como texto Base64 dentro del mismo JSON.
-// No lleva id, fecha ni autor: los pone el backend.
+// No lleva id, fecha, autor ni estatus: los pone el backend.
 @Serializable
 data class NuevoReporteDto(
     val tipo: String,
@@ -35,5 +38,9 @@ data class NuevoReporteDto(
     val descripcion: String,
     @SerialName("foto_base64") val fotoBase64: String
 )
+
+// PATCH /reportes/{id}/estatus
+@Serializable
+data class CambioEstatusDto(val estatus: String)
 
 fun TipoReporte.aTextoApi(): String = if (this == TipoReporte.FALLA) "falla" else "desperdicio"

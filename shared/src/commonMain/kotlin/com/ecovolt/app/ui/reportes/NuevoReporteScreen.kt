@@ -2,249 +2,267 @@ package com.ecovolt.app.ui.reportes
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.ecovolt.app.model.Reporte
 import com.ecovolt.app.model.TipoReporte
 import com.ecovolt.app.service.aImagen
+import com.ecovolt.app.ui.components.Aviso
+import com.ecovolt.app.ui.components.BotonPrincipal
+import com.ecovolt.app.ui.components.BotonSecundario
+import com.ecovolt.app.ui.components.CampoTexto
+import com.ecovolt.app.ui.components.ChipOpcion
+import com.ecovolt.app.ui.components.ColoresChip
+import com.ecovolt.app.ui.components.EcoIconos
+import com.ecovolt.app.ui.components.EncabezadoPantalla
+import com.ecovolt.app.ui.components.FilaInfo
+import com.ecovolt.app.ui.components.TipoAviso
+import com.ecovolt.app.ui.theme.EcoColores
 
-// Áreas más comunes de la escuela: un toque y se escriben solas (luego se puede completar, ej. "Salón 3B")
-private val AREAS_SUGERIDAS = listOf(
-    "Salón", "Laboratorio", "Centro de cómputo", "Baños", "Oficinas", "Biblioteca", "Cafetería", "Patio"
-)
+// Botones rápidos para no teclear el área completa
+private val AREAS_FRECUENTES = listOf("Salón", "Baños", "Aula de medios", "Laboratorio", "Dirección", "Cafetería", "Patio")
 
+// Formulario "Reportar situación" (RFN-19): tipo, área, descripción y foto
 @Composable
-fun NuevoReporteScreen(viewModel: NuevoReporteViewModel, alVolver: () -> Unit) {
+fun NuevoReporteScreen(viewModel: NuevoReporteViewModel, alVolver: () -> Unit, alEnviar: (Reporte) -> Unit) {
     val estado by viewModel.estado.collectAsState()
-    val colores = MaterialTheme.colorScheme
+    var elegirFoto by remember { mutableStateOf(false) }
+    val imagen = remember(estado.foto) { estado.foto?.bytes?.aImagen() }
 
-    // Remember solo lo repite cuando cambia la foto, no en cada redibujo
-    val vistaPrevia = remember(estado.foto) { estado.foto?.bytes?.aImagen() }
+    Column(Modifier.fillMaxSize().background(EcoColores.Fondo)) {
+        EncabezadoPantalla(titulo = "Reportar situación", subtitulo = "Falla o desperdicio", alVolver = alVolver)
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(0f to colores.primary, 0.3f to colores.primary, 1f to colores.background))
-    ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .safeContentPadding()
+                .weight(1f)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            
-
-            Card(
-                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-            ) {
-                Column(Modifier.padding(24.dp)) {
-                    // Paso 1: tipo
-                    Text("1. ¿Qué quieres reportar?", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                        TipoReporte.entries.forEach { tipo ->
-                            OpcionTipo(
-                                texto = "${tipo.icono} ${tipo.etiqueta}",
-                                activa = estado.tipo == tipo,
-                                modifier = Modifier.weight(1f)
-                            ) { viewModel.elegirTipo(tipo) }
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(estado.tipo.ayuda, style = MaterialTheme.typography.bodySmall, color = colores.onSurfaceVariant)
-
-                    // Paso 2: área
-                    Spacer(Modifier.height(20.dp))
-                    Text("2. ¿Dónde está?", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.horizontalScroll(rememberScrollState())
-                    ) {
-                        AREAS_SUGERIDAS.forEach { area ->
-                            OutlinedButton(
-                                onClick = { viewModel.usarArea(area) },
-                                enabled = !estado.enviando,
-                                shape = RoundedCornerShape(10.dp)
-                            ) { Text(area) }
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    OutlinedTextField(
-                        value = estado.area,
-                        onValueChange = viewModel::alCambiarArea,
-                        label = { Text("Área (ej. Salón 3B)") },
-                        singleLine = true,
-                        enabled = !estado.enviando,
-                        isError = estado.errorArea != null,
-                        supportingText = { estado.errorArea?.let { Text(it) } },
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Next
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
+            Column {
+                Text("¿Qué encontraste?", style = MaterialTheme.typography.titleSmall, color = EcoColores.Texto)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ChipOpcion(
+                        texto = TipoReporte.DESPERDICIO.etiqueta,
+                        seleccionado = estado.tipo == TipoReporte.DESPERDICIO,
+                        alPulsar = { viewModel.elegirTipo(TipoReporte.DESPERDICIO) },
+                        colores = ColoresChip.Ambar,
+                        icono = EcoIconos.Lightbulb,
+                        habilitado = !estado.ocupado
                     )
-
-                    // Paso 3: descripción
-                    Spacer(Modifier.height(12.dp))
-                    Text("3. Describe lo que viste", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = estado.descripcion,
-                        onValueChange = viewModel::alCambiarDescripcion,
-                        label = { Text("Descripción") },
-                        placeholder = { Text("Ej. Las luces y el proyector siguen encendidos y no hay nadie.") },
-                        minLines = 3,
-                        enabled = !estado.enviando,
-                        isError = estado.errorDescripcion != null,
-                        // Muestra el error si hay; si no, cuántos caracteres van
-                        supportingText = { Text(estado.errorDescripcion ?: "${estado.descripcion.length}/500") },
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    ChipOpcion(
+                        texto = TipoReporte.FALLA.etiqueta,
+                        seleccionado = estado.tipo == TipoReporte.FALLA,
+                        alPulsar = { viewModel.elegirTipo(TipoReporte.FALLA) },
+                        colores = ColoresChip.Rojo,
+                        icono = EcoIconos.Wrench,
+                        habilitado = !estado.ocupado
                     )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(estado.tipo.ayuda, style = MaterialTheme.typography.bodyMedium, color = EcoColores.TextoSuave)
+            }
 
-                    // Paso 4: foto
-                    Spacer(Modifier.height(12.dp))
-                    Text("4. Agrega una foto", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-
-                    if (vistaPrevia != null) {
-                        Image(
-                            bitmap = vistaPrevia,
-                            contentDescription = "Foto del reporte",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(14.dp))
+            Column {
+                CampoTexto(
+                    valor = estado.area,
+                    alCambiar = viewModel::alCambiarArea,
+                    etiqueta = "Área de la escuela",
+                    placeholder = "Ej. Salón 3B",
+                    icono = EcoIconos.MapPin,
+                    error = estado.errorArea,
+                    capitalizacion = KeyboardCapitalization.Sentences,
+                    habilitado = !estado.ocupado
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AREAS_FRECUENTES.forEach { area ->
+                        ChipOpcion(
+                            texto = area,
+                            seleccionado = estado.area.trim() == area,
+                            alPulsar = { viewModel.usarArea(area) },
+                            colores = ColoresChip.Gris,
+                            habilitado = !estado.ocupado
                         )
-                        Spacer(Modifier.height(8.dp))
-                    }
-
-                    if (estado.procesandoFoto) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.size(10.dp))
-                            Text("Preparando la foto...", style = MaterialTheme.typography.bodyMedium)
-                        }
-                    } else {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                            OutlinedButton(
-                                onClick = viewModel::tomarFoto,
-                                enabled = !estado.enviando,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
-                            ) { Text(if (estado.foto == null) "📷 Cámara" else "📷 Otra") }
-                            OutlinedButton(
-                                onClick = viewModel::elegirDeGaleria,
-                                enabled = !estado.enviando,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(1f)
-                            ) { Text("🖼️ Galería") }
-                        }
-                        if (estado.foto != null) {
-                            TextButton(onClick = viewModel::quitarFoto, enabled = !estado.enviando) {
-                                Text("Quitar foto", color = colores.error)
-                            }
-                        }
-                    }
-                    estado.errorFoto?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = colores.error)
-                    }
-
-                    // Avisos (error de conexión, cámara no disponible, etc.)
-                    estado.mensaje?.let { mensaje ->
-                        Spacer(Modifier.height(12.dp))
-                        Surface(
-                            color = colores.errorContainer,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = mensaje,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colores.onErrorContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(20.dp))
-                    // Envía el reporte al backend (POST /reportes)
-                    Button(
-                        onClick = { viewModel.enviar(alVolver) },
-                        enabled = !estado.ocupado,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                    ) {
-                        if (estado.enviando) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = colores.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(Modifier.size(10.dp))
-                            Text("Enviando...")
-                        } else {
-                            Text("Enviar reporte", fontWeight = FontWeight.SemiBold)
-                        }
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+
+            CampoTexto(
+                valor = estado.descripcion,
+                alCambiar = viewModel::alCambiarDescripcion,
+                etiqueta = "Descripción",
+                placeholder = "¿Qué viste? Ej. El minisplit sigue encendido aunque el aula está vacía.",
+                error = estado.errorDescripcion,
+                ayuda = "${estado.descripcion.trim().length}/500 caracteres",
+                capitalizacion = KeyboardCapitalization.Sentences,
+                accionIme = ImeAction.Default,
+                lineas = 3,
+                habilitado = !estado.ocupado
+            )
+
+            // Foto: tarjeta azul para agregarla, o la vista previa si ya hay una
+            Column {
+                if (imagen == null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(EcoColores.AzulClaro)
+                            .border(
+                                1.dp,
+                                if (estado.errorFoto != null) EcoColores.Rojo else EcoColores.AzulBorde,
+                                RoundedCornerShape(24.dp)
+                            )
+                            .clickable(enabled = !estado.ocupado) { elegirFoto = true }
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (estado.procesandoFoto) {
+                            CircularProgressIndicator(color = EcoColores.Azul, strokeWidth = 3.dp, modifier = Modifier.size(34.dp))
+                        } else {
+                            Icon(EcoIconos.Camera, contentDescription = null, tint = EcoColores.Azul, modifier = Modifier.size(36.dp))
+                        }
+                        Spacer(Modifier.width(18.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (estado.procesandoFoto) "Preparando la foto..." else "Agrega una foto",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = EcoColores.Texto
+                            )
+                            Text(
+                                "Ayuda a localizar y resolver más rápido.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = EcoColores.TextoSuave
+                            )
+                        }
+                        Icon(EcoIconos.ChevronRight, contentDescription = null, tint = EcoColores.Azul)
+                    }
+                } else {
+                    Image(
+                        bitmap = imagen,
+                        contentDescription = "Foto del reporte",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxWidth().height(210.dp).clip(RoundedCornerShape(24.dp))
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        BotonSecundario(
+                            texto = "Cambiar foto",
+                            icono = EcoIconos.Camera,
+                            habilitado = !estado.ocupado,
+                            alPulsar = { elegirFoto = true },
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = viewModel::quitarFoto, enabled = !estado.ocupado) {
+                            Icon(EcoIconos.Trash2, contentDescription = null, tint = EcoColores.Rojo, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Quitar", style = MaterialTheme.typography.titleMedium, color = EcoColores.Rojo)
+                        }
+                    }
+                }
+                estado.errorFoto?.let {
+                    Spacer(Modifier.height(6.dp))
+                    Text(it, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = EcoColores.Rojo)
+                }
+            }
+
+            Aviso(
+                TipoAviso.ADVERTENCIA,
+                "No incluyas personas",
+                "Fotografía únicamente el equipo o el área. Evita rostros y datos personales.",
+                icono = EcoIconos.ShieldAlert
+            )
+            estado.mensaje?.let { Aviso(TipoAviso.ERROR, "No se envió el reporte", it) }
+
+            BotonPrincipal(
+                texto = "Enviar reporte",
+                icono = EcoIconos.Send,
+                cargando = estado.enviando,
+                habilitado = !estado.procesandoFoto,
+                alPulsar = { viewModel.enviar(alEnviar) }
+            )
         }
     }
-}
 
-// Botón que se ve relleno cuando está elegido y con borde cuando no (igual que OpcionMomento)
-@Composable
-private fun OpcionTipo(texto: String, activa: Boolean, modifier: Modifier, alClic: () -> Unit) {
-    if (activa) {
-        Button(onClick = alClic, shape = RoundedCornerShape(12.dp), modifier = modifier) { Text(texto) }
-    } else {
-        OutlinedButton(onClick = alClic, shape = RoundedCornerShape(12.dp), modifier = modifier) { Text(texto) }
+    if (elegirFoto) {
+        AlertDialog(
+            onDismissRequest = { elegirFoto = false },
+            confirmButton = {
+                TextButton(onClick = { elegirFoto = false }) {
+                    Text("Cancelar", style = MaterialTheme.typography.titleMedium, color = EcoColores.TextoSuave)
+                }
+            },
+            title = { Text("Agregar foto", style = MaterialTheme.typography.headlineSmall) },
+            text = {
+                Column {
+                    FilaInfo(
+                        icono = EcoIconos.Camera,
+                        fondoIcono = EcoColores.VerdeClaro,
+                        tinteIcono = EcoColores.Verde,
+                        titulo = "Tomar foto",
+                        subtitulo = "Con la cámara del teléfono",
+                        alPulsar = {
+                            elegirFoto = false
+                            viewModel.tomarFoto()
+                        }
+                    )
+                    FilaInfo(
+                        icono = EcoIconos.Image,
+                        fondoIcono = EcoColores.AzulClaro,
+                        tinteIcono = EcoColores.Azul,
+                        titulo = "Elegir de la galería",
+                        subtitulo = "Una foto que ya tengas",
+                        alPulsar = {
+                            elegirFoto = false
+                            viewModel.elegirDeGaleria()
+                        }
+                    )
+                }
+            },
+            containerColor = EcoColores.Superficie
+        )
     }
 }

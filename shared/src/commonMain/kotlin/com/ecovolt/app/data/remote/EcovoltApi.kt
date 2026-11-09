@@ -7,6 +7,7 @@ import io.ktor.client.plugins.timeout
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -24,15 +25,23 @@ class SesionExpiradaException : Exception("La sesión expiró")
 
 // El servidor respondió, pero no aceptó la petición (datos inválidos, sin permiso, etc.).
 // El mensaje es el que mandó el backend, listo para mostrarse en pantalla.
-class ServidorRechazoException(mensaje: String) : Exception(mensaje)
+// `errores` trae el problema de cada campo ("nota", "valor_kwh"...) cuando el backend lo indica.
+class ServidorRechazoException(
+    mensaje: String,
+    val codigo: Int = 0,
+    val errores: Map<String, String> = emptyMap()
+) : Exception(mensaje)
 
 @Serializable
-private data class ErrorApi(val mensaje: String? = null)
+private data class ErrorApi(val mensaje: String? = null, val errores: Map<String, String>? = null)
 
 // Lecturas, reportes y consejos. Las rutas del backend están protegidas, así que se envía el token de la sesión.
+// `alSesionVencida` avisa a la app cuando el servidor rechaza el token (venció o se cambió la
+// contraseña en otro dispositivo) para regresar al inicio de sesión.
 class EcoVoltApi(
     private val client: HttpClient,
-    private val tokenProvider: () -> String?
+    private val tokenProvider: () -> String?,
+    private val alSesionVencida: () -> Unit = {}
 ) {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -83,6 +92,17 @@ class EcoVoltApi(
         return json.decodeFromString(respuesta.bodyAsText())
     }
 
+    // PATCH /reportes/{id}/estatus: dirección marca el reporte como en proceso o resuelto
+    suspend fun cambiarEstatusReporte(id: Int, estatus: String): ReporteDto {
+        val respuesta = client.patch("${AppConfig.BASE_URL}${AppConfig.REPORTES_PATH}/$id/estatus") {
+            conToken()
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(CambioEstatusDto(estatus)))
+        }
+        revisar(respuesta)
+        return json.decodeFromString(respuesta.bodyAsText())
+    }
+
     // GET /reportes/{id}/foto: la imagen tal cual. No es JSON, por eso se lee como bytes.
     suspend fun obtenerFotoReporte(id: Int): ByteArray {
         val respuesta = client.get("${AppConfig.BASE_URL}${AppConfig.REPORTES_PATH}/$id/foto") {
@@ -108,14 +128,21 @@ class EcoVoltApi(
 
     // Convierte las respuestas de error del servidor en excepciones que el repositorio sabe manejar
     private suspend fun revisar(respuesta: HttpResponse) {
-        if (respuesta.status == HttpStatusCode.Unauthorized) throw SesionExpiradaException()
+        if (respuesta.status == HttpStatusCode.Unauthorized) {
+            alSesionVencida()
+            throw SesionExpiradaException()
+        }
         if (!respuesta.status.isSuccess()) {
-            val mensaje = try {
-                json.decodeFromString<ErrorApi>(respuesta.bodyAsText()).mensaje
+            val error = try {
+                json.decodeFromString<ErrorApi>(respuesta.bodyAsText())
             } catch (e: Exception) {
                 null
             }
-            throw ServidorRechazoException(mensaje ?: "Error del servidor (${respuesta.status.value})")
+            throw ServidorRechazoException(
+                mensaje = error?.mensaje ?: "Error del servidor (${respuesta.status.value})",
+                codigo = respuesta.status.value,
+                errores = error?.errores ?: emptyMap()
+            )
         }
     }
 }

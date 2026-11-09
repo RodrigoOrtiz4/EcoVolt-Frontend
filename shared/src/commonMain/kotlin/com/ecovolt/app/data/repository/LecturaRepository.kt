@@ -7,6 +7,8 @@ import com.ecovolt.app.data.remote.aTextoApi
 import com.ecovolt.app.data.remote.toModel
 import com.ecovolt.app.model.Lectura
 import com.ecovolt.app.model.MomentoLectura
+import com.ecovolt.app.model.OrigenLectura
+import com.ecovolt.app.model.cronologicas
 import com.ecovolt.app.service.ConsumoService
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -18,15 +20,28 @@ class LecturaRepository(
     private val consumoService: ConsumoService
 ) {
 
-    // Lecturas guardadas en el dispositivo (funciona sin internet)
-    fun lecturasGuardadas(): List<Lectura> = storage.obtener()
+    // Lecturas guardadas en el dispositivo, en orden cronológico (funciona sin internet)
+    fun lecturasGuardadas(): List<Lectura> = storage.obtener().cronologicas()
 
-    // Envía al backend una lectura capturada con la cámara (POST /lecturas).
+    // Envía al backend una lectura (POST /lecturas).
     // Si el servidor la acepta, también se agrega a las guardadas en el teléfono
-    // para que aparezca de inmediato en "Ver lecturas", aun sin volver a sincronizar.
-    suspend fun agregarLectura(momento: MomentoLectura, valorKwh: Double, fecha: String): Result<Lectura> =
+    // para que aparezca de inmediato en el historial, aun sin volver a sincronizar.
+    suspend fun agregarLectura(
+        momento: MomentoLectura,
+        valorKwh: Double,
+        fecha: String,
+        origen: OrigenLectura,
+        nota: String? = null
+    ): Result<Lectura> =
         try {
-            val guardada = api.enviarLectura(NuevaLecturaDto(fecha, momento.aTextoApi(), valorKwh)).toModel()
+            val nueva = NuevaLecturaDto(
+                fecha = fecha,
+                momento = momento.aTextoApi(),
+                valorKwh = valorKwh,
+                origen = origen.aTextoApi(),
+                nota = nota?.trim()?.takeIf { it.isNotEmpty() }
+            )
+            val guardada = api.enviarLectura(nueva).toModel()
             storage.guardar(storage.obtener().filter { it.id != guardada.id } + guardada)
             Result.success(guardada)
         } catch (e: CancellationException) {
@@ -38,7 +53,7 @@ class LecturaRepository(
     // Descarga de la API, guarda en local y devuelve el resultado
     suspend fun sincronizar(): Result<List<Lectura>> =
         try {
-            val lecturas = api.obtenerLecturas().map { it.toModel() }
+            val lecturas = api.obtenerLecturas().map { it.toModel() }.cronologicas()
             storage.guardar(lecturas)
             Result.success(lecturas)
         } catch (e: CancellationException) {

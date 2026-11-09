@@ -4,6 +4,7 @@ import com.ecovolt.app.data.remote.EcoVoltApi
 import com.ecovolt.app.data.remote.NuevoReporteDto
 import com.ecovolt.app.data.remote.aTextoApi
 import com.ecovolt.app.data.remote.toModel
+import com.ecovolt.app.model.EstatusReporte
 import com.ecovolt.app.model.Reporte
 import com.ecovolt.app.model.TipoReporte
 import kotlin.coroutines.cancellation.CancellationException
@@ -38,6 +39,16 @@ class ReporteRepository(private val api: EcoVoltApi) {
     suspend fun reportes(): Result<List<Reporte>> =
         try {
             Result.success(api.obtenerReportes().map { it.toModel() })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+
+    // Solo director y responsable: el servidor revisa el rol de nuevo
+    suspend fun cambiarEstatus(id: Int, estatus: EstatusReporte): Result<Reporte> =
+        try {
+            Result.success(api.cambiarEstatusReporte(id, estatus.textoApi).toModel())
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

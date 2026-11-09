@@ -4,29 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -34,176 +25,112 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ecovolt.app.model.AmbitoConsejo
 import com.ecovolt.app.model.Consejo
-import kotlin.math.round
+import com.ecovolt.app.service.formatoNumero
+import com.ecovolt.app.ui.components.Aviso
+import com.ecovolt.app.ui.components.ChipOpcion
+import com.ecovolt.app.ui.components.ColoresChip
+import com.ecovolt.app.ui.components.EcoIconos
+import com.ecovolt.app.ui.components.EncabezadoPantalla
+import com.ecovolt.app.ui.components.Etiqueta
+import com.ecovolt.app.ui.components.Tarjeta
+import com.ecovolt.app.ui.components.TipoAviso
+import com.ecovolt.app.ui.theme.EcoColores
 
-// Consejos de ahorro para la escuela y el hogar (RFN-25)
+// Consejos de ahorro para la escuela y el hogar (RFN-25).
+// Puede abrirse como pestaña (sin botón de volver) o desde Perfil (con `alVolver`).
 @Composable
-fun ConsejosScreen(viewModel: ConsejosViewModel, alVolver: () -> Unit) {
+fun ConsejosScreen(viewModel: ConsejosViewModel, alVolver: (() -> Unit)? = null) {
     val estado by viewModel.estado.collectAsState()
-    val colores = MaterialTheme.colorScheme
-
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(0f to colores.primary, 0.3f to colores.primary, 1f to colores.background))
-    ) {
+    Column(Modifier.fillMaxSize().background(EcoColores.Fondo)) {
+        EncabezadoPantalla(
+            titulo = "Consejos de ahorro",
+            subtitulo = "Pequeños hábitos, gran diferencia",
+            alVolver = alVolver,
+            accion = if (estado.cargando) {
+                { CircularProgressIndicator(color = EcoColores.Verde, strokeWidth = 3.dp, modifier = Modifier.size(28.dp)) }
+            } else {
+                null
+            }
+        )
+
         LazyColumn(
-            modifier = Modifier.fillMaxSize().safeContentPadding().padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.weight(1f).then(if (alVolver != null) Modifier.navigationBarsPadding() else Modifier),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(
-                        onClick = alVolver,
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-                        modifier = Modifier.align(Alignment.Start)
-                    ) { Text("← Volver") }
-                    Text(
-                        text = "Consejos de ahorro",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ChipOpcion(
+                        texto = "Escuela",
+                        seleccionado = estado.ambito == AmbitoConsejo.ESCUELA,
+                        alPulsar = { viewModel.elegirAmbito(AmbitoConsejo.ESCUELA) },
+                        colores = ColoresChip.Verde,
+                        icono = EcoIconos.School
                     )
-                    Text(
-                        text = "Pequeños cambios que ahorran energía",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
+                    ChipOpcion(
+                        texto = "Hogar",
+                        seleccionado = estado.ambito == AmbitoConsejo.HOGAR,
+                        alPulsar = { viewModel.elegirAmbito(AmbitoConsejo.HOGAR) },
+                        colores = ColoresChip.Azul,
+                        icono = EcoIconos.House
                     )
-                    Spacer(Modifier.height(20.dp))
-
-                    // Pestañas Escuela / Hogar
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
-                    ) {
-                        AmbitoConsejo.entries.forEach { ambito ->
-                            OpcionAmbito(
-                                texto = "${ambito.icono} ${ambito.etiqueta}",
-                                activa = estado.ambito == ambito,
-                                modifier = Modifier.weight(1f)
-                            ) { viewModel.elegirAmbito(ambito) }
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-
-                    // Recomendación según las lecturas del medidor (solo tiene sentido en la escuela)
-                    val consumo = estado.consumoFinDeSemana
-                    if (estado.ambito == AmbitoConsejo.ESCUELA && consumo != null) {
-                        AvisoConsumo(consumoKwh = consumo, fantasma = estado.consumoFantasma)
-                        Spacer(Modifier.height(12.dp))
-                    }
-
-                    if (estado.cargando && estado.consejos.isEmpty()) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.padding(8.dp))
-                    }
-                    estado.mensaje?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = Color.White)
-                        Spacer(Modifier.height(8.dp))
-                    }
                 }
             }
 
-            items(estado.visibles, key = { it.id }) { consejo ->
-                ConsejoItem(consejo)
+            // Recomendación personalizada con las lecturas del medidor
+            val consumo = estado.consumoFinDeSemana
+            if (estado.consumoFantasma && consumo != null && estado.ambito == AmbitoConsejo.ESCUELA) {
+                item {
+                    Aviso(
+                        TipoAviso.ADVERTENCIA,
+                        "Consumo fantasma el fin de semana",
+                        "Con la escuela cerrada se gastaron ${formatoNumero(consumo)} kWh. " +
+                            "Empieza por los consejos de equipos en espera.",
+                        icono = EcoIconos.TriangleAlert
+                    )
+                }
+            }
+            estado.mensaje?.let { mensaje ->
+                item { Aviso(TipoAviso.INFO, null, mensaje) }
             }
 
-            item { Spacer(Modifier.height(16.dp)) }
-        }
-    }
-}
-
-// Tarjeta destacada: avisa si el fin de semana hubo consumo fantasma o felicita si no
-@Composable
-private fun AvisoConsumo(consumoKwh: Double, fantasma: Boolean) {
-    val colores = MaterialTheme.colorScheme
-    val kwh = formatoKwh(consumoKwh)
-    Surface(
-        color = if (fantasma) colores.errorContainer else colores.primaryContainer,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(
-                text = if (fantasma) "⚠️ Consumo fantasma detectado" else "✅ Buen fin de semana",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                color = if (fantasma) colores.onErrorContainer else colores.onPrimaryContainer
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = if (fantasma) {
-                    "El último fin de semana, con la escuela cerrada, se consumieron $kwh kWh. " +
-                        "Revisa los consejos de equipos 🔌 y haz la revisión del viernes."
-                } else {
-                    "El último fin de semana la escuela consumió $kwh kWh. ¡Sigan apagando todo al salir!"
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (fantasma) colores.onErrorContainer else colores.onPrimaryContainer
-            )
+            items(estado.visibles, key = { it.id }) { consejo -> TarjetaConsejo(consejo) }
         }
     }
 }
 
 @Composable
-private fun ConsejoItem(consejo: Consejo) {
-    val colores = MaterialTheme.colorScheme
-    Card(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).padding(vertical = 6.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(Modifier.padding(16.dp)) {
-            // Círculo con el emoji del consejo
+private fun TarjetaConsejo(consejo: Consejo) {
+    val escuela = consejo.ambito == AmbitoConsejo.ESCUELA
+    Tarjeta(relleno = 16.dp) {
+        Row(verticalAlignment = Alignment.Top) {
             Box(
-                modifier = Modifier.size(48.dp).clip(CircleShape).background(colores.surfaceVariant),
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (escuela) EcoColores.VerdeClaro else EcoColores.AzulClaro),
                 contentAlignment = Alignment.Center
             ) {
-                Text(consejo.icono, fontSize = 24.sp)
+                Text(consejo.icono, fontSize = 26.sp)
             }
-            Spacer(Modifier.size(12.dp))
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = consejo.categoria.uppercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = colores.primary
+                Etiqueta(
+                    consejo.categoria,
+                    if (escuela) EcoColores.VerdeClaro else EcoColores.AzulClaro,
+                    if (escuela) EcoColores.Verde else EcoColores.Azul
                 )
-                Text(consejo.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(consejo.titulo, style = MaterialTheme.typography.titleMedium, color = EcoColores.Texto)
                 Spacer(Modifier.height(4.dp))
-                Text(consejo.texto, style = MaterialTheme.typography.bodyMedium, color = colores.onSurfaceVariant)
+                Text(consejo.texto, style = MaterialTheme.typography.bodyMedium, color = EcoColores.TextoSuave)
             }
         }
     }
 }
-
-@Composable
-private fun OpcionAmbito(texto: String, activa: Boolean, modifier: Modifier, alClic: () -> Unit) {
-    if (activa) {
-        Button(
-            onClick = alClic,
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = MaterialTheme.colorScheme.primary),
-            modifier = modifier
-        ) { Text(texto, fontWeight = FontWeight.Bold) }
-    } else {
-        OutlinedButton(
-            onClick = alClic,
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-            modifier = modifier
-        ) { Text(texto) }
-    }
-}
-
-// 3.9000000000000909 → "3.9". Las restas con Double dejan decimales "basura"; se redondea a uno.
-private fun formatoKwh(valor: Double): String = (round(valor * 10) / 10).toString()

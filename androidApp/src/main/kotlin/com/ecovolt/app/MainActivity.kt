@@ -16,6 +16,7 @@ class MainActivity : ComponentActivity() {
         // Deben crearse aquí, antes de que la actividad arranque, porque registran el resultado de la cámara
         val lector = AndroidLectorMedidor(this)
         val selectorFoto = AndroidSelectorFoto(this)   // fotos de los reportes (cámara o galería)
+        val compartidor = AndroidCompartidor(this)     // exportar el historial de lecturas
 
         setContent {
             App(
@@ -23,7 +24,8 @@ class MainActivity : ComponentActivity() {
                 sesionStorage = SharedPrefsSesionStorage(applicationContext),
                 lector = lector,
                 selectorFoto = selectorFoto,
-                consejoStorage = SharedPrefsConsejoStorage(applicationContext)
+                consejoStorage = SharedPrefsConsejoStorage(applicationContext),
+                compartidor = compartidor
             )
         }
     }

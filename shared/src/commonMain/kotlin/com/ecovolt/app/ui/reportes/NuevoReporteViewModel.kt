@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ecovolt.app.data.remote.SesionExpiradaException
 import com.ecovolt.app.data.remote.ServidorRechazoException
 import com.ecovolt.app.data.repository.ReporteRepository
+import com.ecovolt.app.model.Reporte
 import com.ecovolt.app.model.TipoReporte
 import com.ecovolt.app.service.Foto
 import com.ecovolt.app.service.ResultadoFoto
@@ -16,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// Todo lo que el formulario de reporte necesita mostrar
+// Todo lo que el formulario de reporte necesita mostrar (RFN-19: foto, área y descripción)
 data class NuevoReporteUiState(
     val tipo: TipoReporte = TipoReporte.DESPERDICIO,
     val area: String = "",
@@ -83,7 +84,16 @@ class NuevoReporteViewModel(
         }
     }
 
-    fun enviar(alEnviar: () -> Unit) {
+    // Se llama al salir del formulario sin enviar: no se guarda un borrador a medias
+    fun limpiar() {
+        if (!_estado.value.ocupado) _estado.value = NuevoReporteUiState()
+    }
+
+    fun cerrarMensaje() {
+        _estado.update { it.copy(mensaje = null) }
+    }
+
+    fun enviar(alEnviar: (Reporte) -> Unit) {
         val actual = _estado.value
         if (actual.ocupado) return
 
@@ -101,14 +111,14 @@ class NuevoReporteViewModel(
         viewModelScope.launch {
             _estado.update { it.copy(enviando = true, mensaje = null) }
             repository.enviar(actual.tipo, actual.area, actual.descripcion, foto.bytes)
-                .onSuccess {
+                .onSuccess { reporte ->
                     _estado.value = NuevoReporteUiState()
-                    alEnviar()
+                    alEnviar(reporte)
                 }
                 .onFailure { causa ->
                     // Se conserva lo escrito y la foto para reintentar sin capturar todo otra vez
                     val mensaje = when (causa) {
-                        is SesionExpiradaException -> "Tu sesión expiró. Cierra sesión y vuelve a entrar para enviar el reporte."
+                        is SesionExpiradaException -> "Tu sesión expiró. Vuelve a iniciar sesión para enviar el reporte."
                         is ServidorRechazoException -> causa.message ?: "El servidor rechazó el reporte."
                         else -> "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo."
                     }

@@ -1,31 +1,19 @@
 package com.ecovolt.app.ui.registro
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,189 +21,121 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.ecovolt.app.model.Usuario
+import com.ecovolt.app.ui.components.Aviso
+import com.ecovolt.app.ui.components.BotonPrincipal
+import com.ecovolt.app.ui.components.CampoTexto
+import com.ecovolt.app.ui.components.EcoIconos
+import com.ecovolt.app.ui.components.EncabezadoPantalla
+import com.ecovolt.app.ui.components.TipoAviso
+import com.ecovolt.app.ui.theme.EcoColores
 
-// Pantalla de registro (frontend). Solo dibuja el estado y avisa lo que hace el usuario.
+// Registro de alumnos. Toda cuenta nueva es de ALUMNO: el servidor decide el rol.
 @Composable
 fun RegistroScreen(
     viewModel: RegistroViewModel,
     alVolverALogin: () -> Unit,
-    alRegistrarse: (Usuario) -> Unit
+    alRegistrar: (Usuario) -> Unit
 ) {
     val estado by viewModel.estado.collectAsState()
-    val colores = MaterialTheme.colorScheme
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(0f to colores.primary, 0.30f to colores.primary, 1f to colores.background))
-    ) {
+    Column(Modifier.fillMaxSize().background(EcoColores.Fondo)) {
+        EncabezadoPantalla(titulo = "Crear cuenta", subtitulo = "Cuenta de alumno", alVolver = alVolverALogin)
+
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .safeContentPadding()
+                .weight(1f)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 24.dp)
         ) {
-            // Logotipo
-            Box(
-                modifier = Modifier.size(64.dp).clip(CircleShape).background(Color.White),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("⚡", fontSize = 32.sp)
-            }
-            Spacer(Modifier.height(8.dp))
+            Text("Únete a EcoVolt", style = MaterialTheme.typography.headlineLarge, color = EcoColores.Texto)
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = "EcoVolt",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+                "Reporta desperdicios de energía en tu escuela y aprende a ahorrar también en casa.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = EcoColores.TextoSuave
             )
-            Spacer(Modifier.height(20.dp))
 
-            // Tarjeta con el formulario
-            Card(
-                modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            estado.errorGeneral?.let {
+                Spacer(Modifier.height(18.dp))
+                Aviso(TipoAviso.ERROR, "No pudimos crear tu cuenta", it)
+            }
+
+            Spacer(Modifier.height(22.dp))
+            CampoTexto(
+                valor = estado.nombre,
+                alCambiar = viewModel::alCambiarNombre,
+                etiqueta = "Nombre completo",
+                placeholder = "Ej. Ana López",
+                icono = EcoIconos.User,
+                error = estado.errorNombre,
+                capitalizacion = KeyboardCapitalization.Words,
+                habilitado = !estado.cargando
+            )
+            Spacer(Modifier.height(18.dp))
+            CampoTexto(
+                valor = estado.usuario,
+                alCambiar = viewModel::alCambiarUsuario,
+                etiqueta = "Usuario",
+                placeholder = "Ej. ana.lopez",
+                icono = EcoIconos.UserPlus,
+                error = estado.errorUsuario,
+                ayuda = "De 4 a 20 caracteres: letras, números, punto o guion bajo.",
+                habilitado = !estado.cargando
+            )
+            Spacer(Modifier.height(18.dp))
+            CampoTexto(
+                valor = estado.contrasena,
+                alCambiar = viewModel::alCambiarContrasena,
+                etiqueta = "Contraseña",
+                placeholder = "Mínimo 6 caracteres",
+                icono = EcoIconos.Lock,
+                error = estado.errorContrasena,
+                esContrasena = true,
+                mostrarContrasena = estado.mostrarContrasena,
+                alAlternarContrasena = viewModel::alternarContrasena,
+                teclado = KeyboardType.Password,
+                habilitado = !estado.cargando
+            )
+            Spacer(Modifier.height(18.dp))
+            CampoTexto(
+                valor = estado.confirmacion,
+                alCambiar = viewModel::alCambiarConfirmacion,
+                etiqueta = "Confirmar contraseña",
+                placeholder = "Repite tu contraseña",
+                icono = EcoIconos.Lock,
+                error = estado.errorConfirmacion,
+                esContrasena = true,
+                mostrarContrasena = estado.mostrarContrasena,
+                alAlternarContrasena = viewModel::alternarContrasena,
+                teclado = KeyboardType.Password,
+                accionIme = ImeAction.Done,
+                alAccionIme = { viewModel.registrar(alRegistrar) },
+                habilitado = !estado.cargando
+            )
+
+            Spacer(Modifier.height(26.dp))
+            BotonPrincipal(
+                texto = "Crear cuenta",
+                icono = EcoIconos.UserPlus,
+                cargando = estado.cargando,
+                alPulsar = { viewModel.registrar(alRegistrar) }
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.padding(24.dp)) {
-                    Text(
-                        text = "Crear cuenta",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Regístrate como alumno para empezar",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colores.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(20.dp))
-
-                    OutlinedTextField(
-                        value = estado.nombre,
-                        onValueChange = viewModel::alCambiarNombre,
-                        label = { Text("Nombre completo") },
-                        singleLine = true,
-                        enabled = !estado.cargando,
-                        isError = estado.errorNombre != null,
-                        supportingText = { estado.errorNombre?.let { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(4.dp))
-
-                    OutlinedTextField(
-                        value = estado.usuario,
-                        onValueChange = viewModel::alCambiarUsuario,
-                        label = { Text("Usuario") },
-                        singleLine = true,
-                        enabled = !estado.cargando,
-                        isError = estado.errorUsuario != null,
-                        supportingText = { estado.errorUsuario?.let { Text(it) } },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(4.dp))
-
-                    OutlinedTextField(
-                        value = estado.contrasena,
-                        onValueChange = viewModel::alCambiarContrasena,
-                        label = { Text("Contraseña") },
-                        singleLine = true,
-                        enabled = !estado.cargando,
-                        isError = estado.errorContrasena != null,
-                        supportingText = { estado.errorContrasena?.let { Text(it) } },
-                        visualTransformation = if (estado.mostrarContrasena) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
-                        trailingIcon = {
-                            Text(
-                                text = if (estado.mostrarContrasena) "Ocultar" else "Mostrar",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = colores.primary,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { viewModel.alternarContrasena() }
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            )
-                        },
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(4.dp))
-
-                    OutlinedTextField(
-                        value = estado.confirmacion,
-                        onValueChange = viewModel::alCambiarConfirmacion,
-                        label = { Text("Repetir contraseña") },
-                        singleLine = true,
-                        enabled = !estado.cargando,
-                        isError = estado.errorConfirmacion != null,
-                        supportingText = { estado.errorConfirmacion?.let { Text(it) } },
-                        visualTransformation = if (estado.mostrarContrasena) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { viewModel.registrar(alRegistrarse) }),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    estado.errorGeneral?.let { mensaje ->
-                        Spacer(Modifier.height(8.dp))
-                        Surface(
-                            color = colores.errorContainer,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = mensaje,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colores.onErrorContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = { viewModel.registrar(alRegistrarse) },
-                        enabled = !estado.cargando,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                    ) {
-                        if (estado.cargando) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(22.dp),
-                                color = colores.onPrimary,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text("Registrarme", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(
-                        onClick = alVolverALogin,
-                        enabled = !estado.cargando,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("¿Ya tienes cuenta? Inicia sesión")
-                    }
+                Text("¿Ya tienes cuenta?", style = MaterialTheme.typography.bodyLarge, color = EcoColores.TextoSuave)
+                TextButton(onClick = alVolverALogin, enabled = !estado.cargando) {
+                    Text("Inicia sesión", style = MaterialTheme.typography.titleMedium, color = EcoColores.Verde)
                 }
             }
         }

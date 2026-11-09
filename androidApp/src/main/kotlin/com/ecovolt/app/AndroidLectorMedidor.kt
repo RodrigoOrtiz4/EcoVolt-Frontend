@@ -3,6 +3,7 @@ package com.ecovolt.app
 import android.content.ActivityNotFoundException
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.media.ExifInterface
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +13,7 @@ import com.ecovolt.app.service.ResultadoCaptura
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 // Código específico de Android: abre la cámara del sistema y reconoce el texto con ML Kit (sin internet).
@@ -61,17 +63,38 @@ class AndroidLectorMedidor(private val actividad: ComponentActivity) : LectorMed
             return
         }
         val (bitmap, grados) = cargada
+        // Copia pequeña y derecha de la foto para mostrarla en "Confirmar lectura"
+        val vista = vistaPrevia(bitmap, grados)
 
         reconocedor.process(InputImage.fromBitmap(bitmap, grados))
             .addOnSuccessListener { resultado ->
-                archivo.delete() // la foto solo se necesita para leer el número
-                callback(ResultadoCaptura.Texto(resultado.text))
+                archivo.delete() // el archivo original solo se necesita para leer el número
+                callback(ResultadoCaptura.Texto(resultado.text, vista))
             }
             .addOnFailureListener {
                 archivo.delete()
                 callback(ResultadoCaptura.Error("No se pudo leer el texto de la foto."))
             }
     }
+
+    // JPG de máximo 1024 px, ya girado como se tomó. Si algo falla, simplemente no hay vista previa.
+    private fun vistaPrevia(bitmap: Bitmap, grados: Int): ByteArray? =
+        try {
+            val escala = minOf(1f, 1024f / maxOf(bitmap.width, bitmap.height))
+            val matriz = Matrix().apply {
+                postScale(escala, escala)
+                postRotate(grados.toFloat())
+            }
+            val chica = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matriz, true)
+            val salida = ByteArrayOutputStream()
+            chica.compress(Bitmap.CompressFormat.JPEG, 75, salida)
+            if (chica !== bitmap) chica.recycle() // el original lo sigue usando ML Kit
+            salida.toByteArray()
+        } catch (e: Exception) {
+            null
+        } catch (e: OutOfMemoryError) {
+            null
+        }
 
     // Reduce la foto (las de la cámara son enormes) y lee su orientación para que el OCR la vea derecha
     private fun cargarBitmap(archivo: File): Pair<Bitmap, Int>? {

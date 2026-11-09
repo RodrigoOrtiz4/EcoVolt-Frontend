@@ -2,28 +2,25 @@ package com.ecovolt.app.ui.reportes
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,153 +31,219 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.ecovolt.app.model.EstatusReporte
 import com.ecovolt.app.model.Reporte
-import com.ecovolt.app.model.Rol
 import com.ecovolt.app.model.TipoReporte
 import com.ecovolt.app.model.Usuario
 import com.ecovolt.app.service.aImagen
+import com.ecovolt.app.ui.components.Aviso
+import com.ecovolt.app.ui.components.BotonCircular
+import com.ecovolt.app.ui.components.BotonPrincipal
+import com.ecovolt.app.ui.components.ChipOpcion
+import com.ecovolt.app.ui.components.ColoresChip
+import com.ecovolt.app.ui.components.EcoIconos
+import com.ecovolt.app.ui.components.EncabezadoPantalla
+import com.ecovolt.app.ui.components.Etiqueta
+import com.ecovolt.app.ui.components.IconoEnCaja
+import com.ecovolt.app.ui.components.Tarjeta
+import com.ecovolt.app.ui.components.TipoAviso
+import com.ecovolt.app.ui.theme.EcoColores
 
-// Lista de reportes. El director y el responsable ven todos; los demás, solo los que enviaron
-// (eso lo decide el backend; aquí solo cambia el texto del encabezado).
+// Colores de cada estatus: fondo y texto
+fun coloresEstatus(estatus: EstatusReporte): Pair<Color, Color> = when (estatus) {
+    EstatusReporte.PENDIENTE -> EcoColores.AmarilloClaro to EcoColores.Ambar
+    EstatusReporte.EN_PROCESO -> EcoColores.AzulClaro to EcoColores.Azul
+    EstatusReporte.RESUELTO -> EcoColores.VerdeClaro to EcoColores.Verde
+}
+
+private fun coloresChipEstatus(estatus: EstatusReporte): ColoresChip = when (estatus) {
+    EstatusReporte.PENDIENTE -> ColoresChip.Ambar
+    EstatusReporte.EN_PROCESO -> ColoresChip.Azul
+    EstatusReporte.RESUELTO -> ColoresChip.Verde
+}
+
+// Lista de reportes (pestaña "Reportar"). Director y responsable ven todos y cambian el estatus;
+// los demás ven solo los suyos.
 @Composable
 fun ReportesScreen(
     usuario: Usuario,
     viewModel: ReportesViewModel,
-    alNuevoReporte: () -> Unit,
-    alVolver: () -> Unit
+    alNuevoReporte: () -> Unit
 ) {
     val estado by viewModel.estado.collectAsState()
-    val colores = MaterialTheme.colorScheme
-    val veTodos = usuario.rol == Rol.DIRECTOR || usuario.rol == Rol.RESPONSABLE
-
-    // Se ejecuta una vez cada vez que se entra a esta pantalla (también al volver del formulario)
+    val atiende = usuario.rol.atiendeReportes
     LaunchedEffect(Unit) { viewModel.cargar() }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(0f to colores.primary, 0.3f to colores.primary, 1f to colores.background))
-    ) {
-        // LazyColumn solo dibuja las tarjetas que se ven en pantalla (importante si hay muchas fotos)
+    Column(Modifier.fillMaxSize().background(EcoColores.Fondo)) {
+        EncabezadoPantalla(
+            titulo = if (atiende) "Reportes" else "Mis reportes",
+            subtitulo = if (atiende) "De toda la escuela" else "Lo que has reportado",
+            accion = {
+                if (estado.cargando) {
+                    CircularProgressIndicator(color = EcoColores.Verde, strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
+                } else {
+                    BotonCircular(EcoIconos.RefreshCw, "Actualizar", viewModel::cargar)
+                }
+            }
+        )
+
         LazyColumn(
-            modifier = Modifier.fillMaxSize().safeContentPadding().padding(horizontal = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    TextButton(
-                        onClick = alVolver,
-                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
-                        modifier = Modifier.align(Alignment.Start)
-                    ) { Text("← Volver") }
-                    Text(
-                        text = if (veTodos) "Reportes recibidos" else "Mis reportes",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                BotonPrincipal(texto = "Reportar situación", icono = EcoIconos.CircleAlert, alPulsar = alNuevoReporte)
+            }
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ChipOpcion(
+                        texto = "Todos (${estado.reportes.size})",
+                        seleccionado = estado.filtro == null,
+                        alPulsar = { viewModel.filtrar(null) },
+                        colores = ColoresChip.Gris
                     )
-                    Text(
-                        text = if (veTodos) "Desperdicios y fallas reportados en la escuela" else "Los reportes que has enviado",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f)
-                    )
-                    Spacer(Modifier.height(20.dp))
-                    Button(
-                        onClick = alNuevoReporte,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = colores.secondary, contentColor = colores.onSecondary),
-                        modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).height(52.dp)
-                    ) { Text("➕  Nuevo reporte", fontWeight = FontWeight.SemiBold) }
-                    Spacer(Modifier.height(12.dp))
-
-                    if (estado.cargando) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.padding(8.dp))
-                    }
-                    estado.mensaje?.let {
-                        Text(it, style = MaterialTheme.typography.bodySmall, color = Color.White)
-                        Spacer(Modifier.height(8.dp))
-                    }
-                    if (!estado.cargando && estado.reportes.isEmpty() && estado.mensaje == null) {
-                        Text(
-                            text = "Aún no hay reportes. Si ves una luz encendida sin nadie o algo descompuesto, repórtalo.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White
+                    EstatusReporte.entries.forEach { estatus ->
+                        ChipOpcion(
+                            texto = "${estatus.etiqueta} (${estado.cuantos(estatus)})",
+                            seleccionado = estado.filtro == estatus,
+                            alPulsar = { viewModel.filtrar(estatus) },
+                            colores = coloresChipEstatus(estatus)
                         )
                     }
                 }
             }
-
-            items(estado.reportes, key = { it.id }) { reporte ->
-                ReporteItem(
+            estado.mensaje?.let { mensaje ->
+                item { Aviso(TipoAviso.ERROR, null, mensaje) }
+            }
+            if (estado.visibles.isEmpty() && !estado.cargando) {
+                item {
+                    Aviso(
+                        TipoAviso.INFO,
+                        "Sin reportes",
+                        if (estado.filtro == null) {
+                            "Cuando alguien reporte un desperdicio o una falla, aquí verás en qué va."
+                        } else {
+                            "No hay reportes con este estatus."
+                        }
+                    )
+                }
+            }
+            items(estado.visibles, key = { it.id }) { reporte ->
+                TarjetaReporte(
                     reporte = reporte,
+                    atiende = atiende,
                     foto = estado.fotos[reporte.id],
                     cargandoFoto = reporte.id in estado.cargandoFotos,
-                    mostrarAutor = veTodos,
-                    alVerFoto = { viewModel.verFoto(reporte.id) }
+                    actualizando = reporte.id in estado.actualizando,
+                    alVerFoto = { viewModel.verFoto(reporte.id) },
+                    alOcultarFoto = { viewModel.ocultarFoto(reporte.id) },
+                    alCambiarEstatus = { viewModel.cambiarEstatus(reporte.id, it) }
                 )
             }
-
-            item { Spacer(Modifier.height(16.dp)) }
         }
     }
 }
 
 @Composable
-private fun ReporteItem(
+private fun TarjetaReporte(
     reporte: Reporte,
+    atiende: Boolean,
     foto: ByteArray?,
     cargandoFoto: Boolean,
-    mostrarAutor: Boolean,
-    alVerFoto: () -> Unit
+    actualizando: Boolean,
+    alVerFoto: () -> Unit,
+    alOcultarFoto: () -> Unit,
+    alCambiarEstatus: (EstatusReporte) -> Unit
 ) {
-    val colores = MaterialTheme.colorScheme
+    val falla = reporte.tipo == TipoReporte.FALLA
+    val (fondoEstatus, tintaEstatus) = coloresEstatus(reporte.estatus)
     val imagen = remember(foto) { foto?.aImagen() }
-    // Desperdicio en amarillo "volt"; falla en el color de error para que resalte
-    val colorTipo = if (reporte.tipo == TipoReporte.FALLA) colores.errorContainer else colores.secondary
-    val textoTipo = if (reporte.tipo == TipoReporte.FALLA) colores.onErrorContainer else colores.onSecondary
 
-    Card(
-        modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).padding(vertical = 6.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = colorTipo) {
-                    Text(
-                        text = "${reporte.tipo.icono} ${reporte.tipo.etiqueta}",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = textoTipo,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+    Tarjeta(relleno = 16.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconoEnCaja(
+                icono = if (falla) EcoIconos.Wrench else EcoIconos.Lightbulb,
+                fondo = if (falla) EcoColores.RojoClaro else EcoColores.AmarilloClaro,
+                tinte = if (falla) EcoColores.Rojo else EcoColores.Ambar,
+                tamano = 48.dp,
+                tamanoIcono = 24.dp,
+                radio = 14.dp
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(reporte.area, style = MaterialTheme.typography.titleMedium, color = EcoColores.Texto)
+                Text(
+                    "${reporte.folio} · ${reporte.tipo.etiqueta} · ${reporte.fecha}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = EcoColores.TextoSuave
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Etiqueta(reporte.estatus.etiqueta, fondoEstatus, tintaEstatus)
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(reporte.descripcion, style = MaterialTheme.typography.bodyLarge, color = EcoColores.Texto)
+        if (atiende) {
+            Spacer(Modifier.height(6.dp))
+            Text("Reportó: ${reporte.autor}", style = MaterialTheme.typography.bodySmall, color = EcoColores.TextoSuave)
+        }
+
+        if (imagen != null) {
+            Spacer(Modifier.height(12.dp))
+            Image(
+                bitmap = imagen,
+                contentDescription = "Foto del reporte ${reporte.folio}",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(18.dp))
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = if (imagen != null) alOcultarFoto else alVerFoto, enabled = !cargandoFoto) {
+                if (cargandoFoto) {
+                    CircularProgressIndicator(color = EcoColores.Verde, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                } else {
+                    Icon(EcoIconos.Image, contentDescription = null, tint = EcoColores.Verde, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (imagen != null) "Ocultar foto" else "Ver foto",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = EcoColores.Verde
+                )
+            }
+        }
+
+        // Dirección actualiza en qué va el reporte
+        if (atiende && reporte.estatus != EstatusReporte.RESUELTO) {
+            Spacer(Modifier.height(4.dp))
+            if (actualizando) {
+                CircularProgressIndicator(color = EcoColores.Verde, strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (reporte.estatus == EstatusReporte.PENDIENTE) {
+                        ChipOpcion(
+                            texto = "Marcar en proceso",
+                            seleccionado = false,
+                            alPulsar = { alCambiarEstatus(EstatusReporte.EN_PROCESO) },
+                            colores = ColoresChip.Azul,
+                            icono = EcoIconos.Clock
+                        )
+                    }
+                    ChipOpcion(
+                        texto = "Resuelto",
+                        seleccionado = false,
+                        alPulsar = { alCambiarEstatus(EstatusReporte.RESUELTO) },
+                        colores = ColoresChip.Verde,
+                        icono = EcoIconos.Check
                     )
                 }
-                Spacer(Modifier.size(8.dp))
-                Text(reporte.fecha, style = MaterialTheme.typography.bodySmall, color = colores.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(8.dp))
-            Text("📍 ${reporte.area}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text(reporte.descripcion, style = MaterialTheme.typography.bodyMedium)
-            if (mostrarAutor) {
-                Text("Reportó: ${reporte.autor}", style = MaterialTheme.typography.bodySmall, color = colores.onSurfaceVariant)
-            }
-            Spacer(Modifier.height(8.dp))
-
-            when {
-                imagen != null -> Image(
-                    bitmap = imagen,
-                    contentDescription = "Foto del reporte en ${reporte.area}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp))
-                )
-                cargandoFoto -> CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                else -> TextButton(onClick = alVerFoto) { Text("🖼️ Ver foto") }
             }
         }
     }

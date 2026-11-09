@@ -10,9 +10,10 @@ object AppConfig {
     const val LECTURAS_PATH = "/lecturas"
     const val LOGIN_PATH = "/auth/login"
     const val REGISTER_PATH = "/auth/register"
-    const val REPORTES_PATH = "/reportes"
-    const val CONSEJOS_PATH = "/consejos"
+    const val CAMBIAR_CONTRASENA_PATH = "/auth/cambiar-contrasena"
+    const val REPORTES_PATH = "/reportes"      // RFN-19
+    const val CONSEJOS_PATH = "/consejos"      // RFN-25
     const val TIMEOUT_MS = 15_000L
-    const val TIMEOUT_SUBIDA_MS = 45_000L
+    const val TIMEOUT_SUBIDA_MS = 45_000L      // para enviar reportes con foto
     const val STORAGE_NAME = "ecovolt_storage"
 }
