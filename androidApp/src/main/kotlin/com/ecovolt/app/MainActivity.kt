@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.ecovolt.app.data.local.SharedPrefsConsejoStorage
 import com.ecovolt.app.data.local.SharedPrefsLecturaStorage
 import com.ecovolt.app.data.local.SharedPrefsSesionStorage
 
@@ -12,14 +13,19 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Debe crearse aquí, antes de que la actividad arranque, porque registra el resultado de la cámara
+        // Deben crearse aquí, antes de que la actividad arranque, porque registran el resultado de la cámara
         val lector = AndroidLectorMedidor(this)
+        val selectorFoto = AndroidSelectorFoto(this)   // fotos de los reportes (cámara o galería)
+        val compartidor = AndroidCompartidor(this)     // exportar el historial de lecturas
 
         setContent {
             App(
                 storage = SharedPrefsLecturaStorage(applicationContext),
                 sesionStorage = SharedPrefsSesionStorage(applicationContext),
-                lector = lector
+                lector = lector,
+                selectorFoto = selectorFoto,
+                consejoStorage = SharedPrefsConsejoStorage(applicationContext),
+                compartidor = compartidor
             )
         }
     }

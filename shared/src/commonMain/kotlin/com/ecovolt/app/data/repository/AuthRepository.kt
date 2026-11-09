@@ -8,7 +8,9 @@ import kotlin.coroutines.cancellation.CancellationException
 
 sealed interface ResultadoLogin {
     data class Exito(val usuario: Usuario) : ResultadoLogin
-    data object CredencialesInvalidas : ResultadoLogin
+    // intentosRestantes: cuántos intentos quedan antes de que el servidor bloquee el usuario un rato
+    data class CredencialesInvalidas(val intentosRestantes: Int?) : ResultadoLogin
+    data class Bloqueado(val mensaje: String) : ResultadoLogin
     data class Error(val mensaje: String) : ResultadoLogin
 }
 
@@ -18,10 +20,19 @@ sealed interface ResultadoRegistro {
     data class Error(val mensaje: String) : ResultadoRegistro
 }
 
+sealed interface ResultadoCambioContrasena {
+    data object Exito : ResultadoCambioContrasena
+    // Errores por campo que mandó el servidor ("actual", "nueva")
+    data class Rechazado(val mensaje: String, val errores: Map<String, String>) : ResultadoCambioContrasena
+    data object SesionVencida : ResultadoCambioContrasena
+    data class Error(val mensaje: String) : ResultadoCambioContrasena
+}
+
 private const val SIN_SERVIDOR = "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo."
 
-// Lógica del login y del registro. Ya no valida contraseñas ni guarda usuarios: eso lo hace el
-// backend. Aquí solo se envían los datos, se interpreta la respuesta y se recuerda la sesión.
+// Lógica del login, del registro y del cambio de contraseña. No valida contraseñas ni guarda
+// usuarios: eso lo hace el backend. Aquí solo se envían los datos, se interpreta la respuesta
+// y se recuerda la sesión.
 class AuthRepository(
     private val api: AuthApi,
     private val sesion: SesionStorage
@@ -33,7 +44,7 @@ class AuthRepository(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            return ResultadoLogin.Error("DEBUG: $e")
+            return ResultadoLogin.Error(SIN_SERVIDOR)
         }
 
         return when (respuesta) {
@@ -42,7 +53,8 @@ class AuthRepository(
                 ResultadoLogin.Exito(respuesta.datos.usuario)
             }
             is RespuestaAuth.Rechazada -> when (respuesta.codigo) {
-                401 -> ResultadoLogin.CredencialesInvalidas
+                401 -> ResultadoLogin.CredencialesInvalidas(respuesta.intentosRestantes)
+                429 -> ResultadoLogin.Bloqueado(respuesta.mensaje)
                 else -> ResultadoLogin.Error(respuesta.mensaje)
             }
         }
@@ -68,6 +80,28 @@ class AuthRepository(
                 409 -> ResultadoRegistro.UsuarioExistente
                 else -> ResultadoRegistro.Error(respuesta.mensaje)
             }
+        }
+    }
+
+    // Si el servidor acepta, cierra la sesión en todos los dispositivos (también en este):
+    // hay que volver a entrar con la contraseña nueva.
+    suspend fun cambiarContrasena(actual: String, nueva: String): ResultadoCambioContrasena {
+        val token = sesion.obtenerToken() ?: return ResultadoCambioContrasena.SesionVencida
+        val rechazo = try {
+            api.cambiarContrasena(token, actual, nueva)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return ResultadoCambioContrasena.Error(SIN_SERVIDOR)
+        }
+        return when {
+            rechazo == null -> {
+                sesion.cerrar()
+                ResultadoCambioContrasena.Exito
+            }
+            rechazo.codigo == 401 -> ResultadoCambioContrasena.SesionVencida
+            rechazo.codigo == 400 -> ResultadoCambioContrasena.Rechazado(rechazo.mensaje, rechazo.errores)
+            else -> ResultadoCambioContrasena.Error(rechazo.mensaje)
         }
     }
 

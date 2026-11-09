@@ -8,7 +8,9 @@ interface LectorMedidor {
 }
 
 sealed interface ResultadoCaptura {
-    data class Texto(val texto: String) : ResultadoCaptura
+    // `foto` es una copia pequeña (JPG) de la foto tomada, para mostrarla al confirmar el número.
+    // Es `class` y no `data class` porque un ByteArray no se compara bien con equals().
+    class Texto(val texto: String, val foto: ByteArray? = null) : ResultadoCaptura
     data object Cancelado : ResultadoCaptura
     data class Error(val mensaje: String) : ResultadoCaptura
 }

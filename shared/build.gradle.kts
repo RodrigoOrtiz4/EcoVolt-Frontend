@@ -35,9 +35,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.compose.uiTooling)
             implementation(libs.ktor.client.okhttp)
+            // BackHandler: el botón "atrás" de Android regresa a la pantalla anterior de la app
+            implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -61,4 +61,10 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+}
+
+// Recursos compartidos (la fuente Nunito en composeResources/font).
+// Se fija el paquete de la clase Res para importarla siempre igual: com.ecovolt.app.resources.Res
+compose.resources {
+    packageOfResClass = "com.ecovolt.app.resources"
 }

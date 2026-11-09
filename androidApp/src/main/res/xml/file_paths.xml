@@ -2,4 +2,6 @@
 <paths>
     <!-- Carpeta temporal donde la cámara deja la foto del medidor -->
     <cache-path name="fotos" path="fotos/" />
+    <!-- Carpeta temporal del CSV que se comparte al exportar el historial de lecturas -->
+    <cache-path name="exportes" path="exportes/" />
 </paths>
