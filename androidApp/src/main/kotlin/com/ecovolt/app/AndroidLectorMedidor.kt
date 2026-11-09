@@ -15,9 +15,7 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.ByteArrayOutputStream
 import java.io.File
-
-// Código específico de Android: abre la cámara del sistema y reconoce el texto con ML Kit (sin internet).
-// Se crea en MainActivity porque registrar el resultado de la cámara debe hacerse al iniciar la actividad.
+//Prueba Examen
 class AndroidLectorMedidor(private val actividad: ComponentActivity) : LectorMedidor {
 
     private var alTerminar: ((ResultadoCaptura) -> Unit)? = null
